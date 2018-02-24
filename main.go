@@ -21,9 +21,11 @@ func authTask(authTasks chan string, output chan string, authBackend *Authorizat
 }
 
 func outputToSquid(output chan string) {
+	b := bufio.NewWriter(os.Stdout)
 	for {
 		outputStr := <-output
-		fmt.Println(outputStr)
+		fmt.Fprintln(b, outputStr)
+		b.Flush()
 	}
 }
 
