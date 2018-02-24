@@ -77,6 +77,9 @@ func main() {
 		inputString := scanner.Text()
 		if checkStringForValidity(inputString) {
 			authTasks <- inputString
+		} else {
+			inputStringSplit := strings.Split(inputString, " ")
+			output <- fmt.Sprintf("%s BH", inputStringSplit[0])
 		}
 	}
 
