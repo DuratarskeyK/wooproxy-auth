@@ -42,9 +42,9 @@ func checkStringForValidity(squidStr string) bool {
 }
 
 func main() {
-	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch")
-	apiAddr := flag.String("api_addr", "", "Address for Proxy Api endpoint")
-	apiKey := flag.String("api_key", "", "Api key for the Proxy Api")
+	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch.")
+	apiAddr := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used.")
+	apiKey := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used.")
 	flag.Parse()
 
 	if *authThreads < 1 {
@@ -53,13 +53,19 @@ func main() {
 	}
 
 	if *apiAddr == "" {
-		fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
-		os.Exit(1)
+		apiAddr := os.Getenv("API_ADDR")
+		if apiAddr == "" {
+			fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
+			os.Exit(1)
+		}
 	}
 
 	if *apiKey == "" {
-		fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
-		os.Exit(1)
+		apiKey := os.Getenv("API_KEY")
+		if apiKey == "" {
+			fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
+			os.Exit(1)
+		}
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 
