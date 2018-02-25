@@ -43,16 +43,18 @@ func checkStringForValidity(squidStr string) bool {
 
 func main() {
 	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch.")
-	apiAddr := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used.")
-	apiKey := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used.")
+	apiAddrCmd := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used.")
+	apiKeyCmd := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used.")
 	flag.Parse()
+	apiAddr := *apiAddrCmd
+	apiKey := *apiKeyCmd
 
 	if *authThreads < 1 {
 		fmt.Fprint(os.Stderr, "auth_threads must be positive.\n")
 		os.Exit(1)
 	}
 
-	if *apiAddr == "" {
+	if apiAddr == "" {
 		apiAddr := os.Getenv("API_ADDR")
 		if apiAddr == "" {
 			fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
@@ -60,7 +62,7 @@ func main() {
 		}
 	}
 
-	if *apiKey == "" {
+	if apiKey == "" {
 		apiKey := os.Getenv("API_KEY")
 		if apiKey == "" {
 			fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
@@ -71,7 +73,7 @@ func main() {
 
 	authTasks := make(chan string)
 	output := make(chan string)
-	authBackend := NewAuthorization(*apiAddr, *apiKey)
+	authBackend := NewAuthorization(apiAddr, apiKey)
 
 	go outputToSquid(output)
 
