@@ -42,7 +42,7 @@ func checkStringForValidity(squidStr string) bool {
 	return true
 }
 
-func getAPIInfoFromFile(path string) (apiAddr string, apiKey string) {
+func getAPIInfoFromFile(path string) (string, string) {
 	if path == "" {
 		return "", ""
 	}
@@ -73,7 +73,7 @@ func main() {
 	}
 
 	if apiAddr == "" {
-		apiAddr := os.Getenv("API_ADDR")
+		apiAddr = os.Getenv("API_ADDR")
 		if apiAddr == "" {
 			apiAddr = apiAddrFile
 			if apiAddr == "" {
@@ -84,7 +84,7 @@ func main() {
 	}
 
 	if apiKey == "" {
-		apiKey := os.Getenv("API_KEY")
+		apiKey = os.Getenv("API_KEY")
 		if apiKey == "" {
 			apiKey = apiKeyFile
 			if apiKey == "" {
@@ -97,6 +97,7 @@ func main() {
 
 	authTasks := make(chan string)
 	output := make(chan string)
+
 	authBackend := NewAuthorization(apiAddr, apiKey)
 
 	go outputToSquid(output)
