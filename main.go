@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -41,32 +42,55 @@ func checkStringForValidity(squidStr string) bool {
 	return true
 }
 
+func getAPIInfoFromFile(path string) (apiAddr string, apiKey string) {
+	if path == "" {
+		return "", ""
+	}
+
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", ""
+	}
+
+	dataSplit := strings.Split(string(data), "\n")
+	return dataSplit[0], dataSplit[1]
+}
+
 func main() {
 	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch.")
-	apiAddrCmd := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used.")
-	apiKeyCmd := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used.")
+	apiAddrCmd := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used. Priority is - command line, env, file.")
+	apiKeyCmd := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used. Priority is - command line, env, file.")
+	apiInfoFileCmd := flag.String("api_info_file", "", "Path to file with api address and api key, split by new line.")
 	flag.Parse()
 	apiAddr := *apiAddrCmd
 	apiKey := *apiKeyCmd
 
+	apiAddrFile, apiKeyFile := getAPIInfoFromFile(*apiInfoFileCmd)
+
 	if *authThreads < 1 {
-		fmt.Fprint(os.Stderr, "auth_threads must be positive.\n")
+		fmt.Fprint(os.Stderr, "auth_threads must be greater than 0.\n")
 		os.Exit(1)
 	}
 
 	if apiAddr == "" {
 		apiAddr := os.Getenv("API_ADDR")
 		if apiAddr == "" {
-			fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
-			os.Exit(1)
+			apiAddr = apiAddrFile
+			if apiAddr == "" {
+				fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
+				os.Exit(1)
+			}
 		}
 	}
 
 	if apiKey == "" {
 		apiKey := os.Getenv("API_KEY")
 		if apiKey == "" {
-			fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
-			os.Exit(1)
+			apiKey = apiKeyFile
+			if apiKey == "" {
+				fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
+				os.Exit(1)
+			}
 		}
 	}
 	scanner := bufio.NewScanner(os.Stdin)
