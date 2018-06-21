@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -42,63 +44,51 @@ func checkStringForValidity(squidStr string) bool {
 	return true
 }
 
-func getAPIInfoFromFile(path string) (string, string) {
+func getAPIInfoFromFile(path string) (*AuthData, error) {
 	if path == "" {
-		return "", ""
+		return nil, errors.New("Empty path")
 	}
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", ""
+		return nil, err
 	}
 
 	dataSplit := strings.Split(string(data), "\n")
-	return dataSplit[0], dataSplit[1]
+	ret := &AuthData{}
+	ret.APIAddr = dataSplit[0]
+	ret.APIKey = dataSplit[1]
+	serverID, err := strconv.Atoi(dataSplit[2])
+	if err != nil {
+		return nil, err
+	}
+	ret.ServerID = serverID
+	return ret, nil
 }
 
 func main() {
 	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch.")
-	apiAddrCmd := flag.String("api_addr", "", "Address for Proxy Api endpoint. If empty, API_ADDR env is used. Priority is - command line, env, file.")
-	apiKeyCmd := flag.String("api_key", "", "Api key for the Proxy Api. If empty, API_KEY env is used. Priority is - command line, env, file.")
 	apiInfoFileCmd := flag.String("api_info_file", "", "Path to file with api address and api key, split by new line.")
 	flag.Parse()
-	apiAddr := *apiAddrCmd
-	apiKey := *apiKeyCmd
 
-	apiAddrFile, apiKeyFile := getAPIInfoFromFile(*apiInfoFileCmd)
+	authData, err := getAPIInfoFromFile(*apiInfoFileCmd)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading api info file\n")
+		os.Exit(1)
+	}
 
 	if *authThreads < 1 {
 		fmt.Fprint(os.Stderr, "auth_threads must be greater than 0.\n")
 		os.Exit(1)
 	}
 
-	if apiAddr == "" {
-		apiAddr = os.Getenv("API_ADDR")
-		if apiAddr == "" {
-			apiAddr = apiAddrFile
-			if apiAddr == "" {
-				fmt.Fprint(os.Stderr, "api_addr can't be empty.\n")
-				os.Exit(1)
-			}
-		}
-	}
-
-	if apiKey == "" {
-		apiKey = os.Getenv("API_KEY")
-		if apiKey == "" {
-			apiKey = apiKeyFile
-			if apiKey == "" {
-				fmt.Fprint(os.Stderr, "api_key can't be empty.\n")
-				os.Exit(1)
-			}
-		}
-	}
 	scanner := bufio.NewScanner(os.Stdin)
 
 	authTasks := make(chan string)
 	output := make(chan string)
 
-	authBackend := NewAuthorization(apiAddr, apiKey)
+	authBackend := NewAuthorization(authData)
 
 	go outputToSquid(output)
 
