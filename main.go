@@ -14,11 +14,20 @@ import (
 func authTask(authTasks chan string, output chan string, authBackend *Authorization) {
 	for {
 		authStringSplit := strings.Split(<-authTasks, " ")
-		canLogin := authBackend.CanLogin(authStringSplit[3], authStringSplit[1], authStringSplit[2])
-		if canLogin {
-			output <- fmt.Sprintf("%s OK", authStringSplit[0])
+		if len(authStringSplit) != 5 {
+			output <- fmt.Sprintf("%s BH", authStringSplit[0])
 		} else {
-			output <- fmt.Sprintf("%s ERR", authStringSplit[0])
+			channel := authStringSplit[0]
+			login := authStringSplit[1]
+			password := authStringSplit[2]
+			proxyIP := authStringSplit[3]
+			remoteIP := authStringSplit[4]
+			canLogin := authBackend.CanLogin(proxyIP, fmt.Sprintf("%s:%s", login, password), remoteIP)
+			if canLogin {
+				output <- fmt.Sprintf("%s OK", channel)
+			} else {
+				output <- fmt.Sprintf("%s ERR", channel)
+			}
 		}
 	}
 }
@@ -34,7 +43,7 @@ func outputToSquid(output chan string) {
 
 func checkStringForValidity(squidStr string) bool {
 	split := strings.Split(squidStr, " ")
-	if len(split) != 4 {
+	if len(split) != 5 {
 		return false
 	}
 	if split[3] == "-" {
@@ -44,7 +53,7 @@ func checkStringForValidity(squidStr string) bool {
 	return true
 }
 
-func getAPIInfoFromFile(path string) (*AuthData, error) {
+func getAPIInfoFromFile(path string) (*APIData, error) {
 	if path == "" {
 		return nil, errors.New("Empty path")
 	}
@@ -55,7 +64,7 @@ func getAPIInfoFromFile(path string) (*AuthData, error) {
 	}
 
 	dataSplit := strings.Split(string(data), "\n")
-	ret := &AuthData{}
+	ret := &APIData{}
 	ret.APIAddr = dataSplit[0]
 	ret.APIKey = dataSplit[1]
 	serverID, err := strconv.Atoi(dataSplit[2])
@@ -98,12 +107,7 @@ func main() {
 
 	for scanner.Scan() {
 		inputString := scanner.Text()
-		if checkStringForValidity(inputString) {
-			authTasks <- inputString
-		} else {
-			inputStringSplit := strings.Split(inputString, " ")
-			output <- fmt.Sprintf("%s BH", inputStringSplit[0])
-		}
+		authTasks <- inputString
 	}
 
 }
