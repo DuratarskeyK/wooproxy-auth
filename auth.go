@@ -40,12 +40,6 @@ type Authorization struct {
 	masterPasswordURI string
 }
 
-const (
-	stateIP       = iota
-	stateLogin    = iota
-	statePassword = iota
-)
-
 func (auth *Authorization) getCurrentAuthData() ([]byte, error) {
 	req, err := http.NewRequest("GET", auth.authDataURI, nil)
 	if err != nil {
