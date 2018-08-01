@@ -14,7 +14,7 @@ import (
 
 type AuthData struct {
 	IPToCredentials map[string]map[string]bool `json:"ips_to_credentials"`
-	IPToAllowedIPs  map[string]map[string]bool `json:"ips_to_allowed_ips"`
+	IPToAllowedIPs  map[string]map[string]bool `json:"ips_to_authorized_ips"`
 }
 
 // APIData contains data needed to access api
