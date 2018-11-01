@@ -11,48 +11,6 @@ import (
 	"strings"
 )
 
-func authTask(authTasks chan string, output chan string, authBackend *Authorization) {
-	for {
-		authStringSplit := strings.Split(<-authTasks, " ")
-		if len(authStringSplit) != 5 {
-			output <- fmt.Sprintf("%s BH", authStringSplit[0])
-		} else {
-			channel := authStringSplit[0]
-			login := authStringSplit[1]
-			password := authStringSplit[2]
-			proxyIP := authStringSplit[3]
-			remoteIP := authStringSplit[4]
-			canLogin := authBackend.CanLogin(proxyIP, fmt.Sprintf("%s:%s", login, password), remoteIP)
-			if canLogin {
-				output <- fmt.Sprintf("%s OK", channel)
-			} else {
-				output <- fmt.Sprintf("%s ERR", channel)
-			}
-		}
-	}
-}
-
-func outputToSquid(output chan string) {
-	b := bufio.NewWriter(os.Stdout)
-	for {
-		outputStr := <-output
-		fmt.Fprintln(b, outputStr)
-		b.Flush()
-	}
-}
-
-func checkStringForValidity(squidStr string) bool {
-	split := strings.Split(squidStr, " ")
-	if len(split) != 5 {
-		return false
-	}
-	if split[3] == "-" {
-		return false
-	}
-
-	return true
-}
-
 func getAPIInfoFromFile(path string) (*APIData, error) {
 	if path == "" {
 		return nil, errors.New("Empty path")
@@ -75,8 +33,11 @@ func getAPIInfoFromFile(path string) (*APIData, error) {
 	return ret, nil
 }
 
+var OK = []byte("OK\n")
+var BH = []byte("BH\n")
+var ERR = []byte("ERR\n")
+
 func main() {
-	authThreads := flag.Int("auth_threads", 1, "How many auth threads to launch.")
 	apiInfoFileCmd := flag.String("api_info_file", "", "Path to file with api address and api key, split by new line.")
 	flag.Parse()
 
@@ -87,27 +48,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *authThreads < 1 {
-		fmt.Fprint(os.Stderr, "auth_threads must be greater than 0.\n")
-		os.Exit(1)
-	}
-
 	scanner := bufio.NewScanner(os.Stdin)
-
-	authTasks := make(chan string)
-	output := make(chan string)
 
 	authBackend := NewAuthorization(authData)
 
-	go outputToSquid(output)
-
-	for i := 0; i < *authThreads; i++ {
-		go authTask(authTasks, output, authBackend)
-	}
-
 	for scanner.Scan() {
 		inputString := scanner.Text()
-		authTasks <- inputString
+		authStringSplit := strings.Split(inputString, " ")
+		if len(authStringSplit) != 4 {
+			os.Stdout.Write(BH)
+		} else {
+			login := authStringSplit[0]
+			password := authStringSplit[1]
+			proxyIP := authStringSplit[2]
+			remoteIP := authStringSplit[3]
+			canLogin := authBackend.CanLogin(proxyIP, fmt.Sprintf("%s:%s", login, password), remoteIP)
+			if canLogin {
+				os.Stdout.Write(OK)
+			} else {
+				os.Stdout.Write(ERR)
+			}
+		}
 	}
-
 }
