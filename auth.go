@@ -175,12 +175,15 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 		}
 	}
 
-	val, ok = auth.AuthData.IPToCredentials[proxyIP]
-	if !ok {
-		return false
+	if credentials != "ipauth:ipauth" {
+		val, ok = auth.AuthData.IPToCredentials[proxyIP]
+		if !ok {
+			return false
+		}
+
+		_, ok = val[credentials]
+
+		return ok
 	}
-
-	_, ok = val[credentials]
-
-	return ok
+	return false
 }
