@@ -38,6 +38,8 @@ type Authorization struct {
 	authHashURI       string
 	authDataURI       string
 	masterPasswordURI string
+
+        httpClient        *http.Client
 }
 
 func (auth *Authorization) getCurrentAuthData() ([]byte, error) {
@@ -47,7 +49,7 @@ func (auth *Authorization) getCurrentAuthData() ([]byte, error) {
 	}
 	req.SetBasicAuth("api", auth.apiData.APIKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := auth.httpClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return nil, errors.New("Fail")
 	}
@@ -78,7 +80,7 @@ func (auth *Authorization) getCurrentAuthHash() string {
 	}
 	req.SetBasicAuth("api", auth.apiData.APIKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := auth.httpClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return ""
 	}
@@ -99,7 +101,7 @@ func (auth *Authorization) updateMasterPassword() {
 	}
 	req.SetBasicAuth("api", auth.apiData.APIKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := auth.httpClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return
 	}
@@ -119,12 +121,12 @@ func (auth *Authorization) updateAuth() {
 	newHash := auth.getCurrentAuthHash()
 
 	if newHash != "" && newHash != auth.credentialsHash {
-		auth.credentialsHash = newHash
 		authDataRaw, err := auth.getCurrentAuthData()
 		if err == nil {
 			var newData AuthData
 			json.Unmarshal(authDataRaw, &newData)
 			auth.authDataMutex.Lock()
+			auth.credentialsHash = newHash
 			auth.AuthData = &newData
 			auth.authDataMutex.Unlock()
 		}
@@ -133,7 +135,7 @@ func (auth *Authorization) updateAuth() {
 
 func (auth *Authorization) checkForNewAuth() {
 	for {
-		time.Sleep(600 * time.Second)
+		time.Sleep(60 * time.Second)
 		auth.updateMasterPassword()
 		auth.updateAuth()
 	}
@@ -147,6 +149,7 @@ func NewAuthorization(apiData *APIData) *Authorization {
 		authHashURI:       fmt.Sprintf("%v/server/%v/auth_hash", apiData.APIAddr, apiData.ServerID),
 		authDataURI:       fmt.Sprintf("%v/server/%v/auth_data", apiData.APIAddr, apiData.ServerID),
 		masterPasswordURI: fmt.Sprintf("%v/master_password/get", apiData.APIAddr),
+                httpClient:        &http.Client{Timeout: time.Second * 10},
 	}
 
 	auth.updateMasterPassword()
