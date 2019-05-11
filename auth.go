@@ -146,8 +146,8 @@ func (auth *Authorization) checkForNewAuth() {
 func NewAuthorization(apiData *APIData) *Authorization {
 	auth := &Authorization{
 		apiData:           apiData,
-		authHashURI:       fmt.Sprintf("%v/server/%v/auth_hash", apiData.APIAddr, apiData.ServerID),
-		authDataURI:       fmt.Sprintf("%v/server/%v/auth_data", apiData.APIAddr, apiData.ServerID),
+		authHashURI:       fmt.Sprintf("%v/server/%v/auth_config_hash", apiData.APIAddr, apiData.ServerID),
+		authDataURI:       fmt.Sprintf("%v/server/%v/auth_config", apiData.APIAddr, apiData.ServerID),
 		masterPasswordURI: fmt.Sprintf("%v/master_password/get", apiData.APIAddr),
                 httpClient:        &http.Client{Timeout: time.Second * 10},
 	}
