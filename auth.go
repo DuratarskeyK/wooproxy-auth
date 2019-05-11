@@ -148,7 +148,7 @@ func NewAuthorization(apiData *APIData) *Authorization {
 		apiData:           apiData,
 		authHashURI:       fmt.Sprintf("%v/server/%v/auth_config_hash", apiData.APIAddr, apiData.ServerID),
 		authDataURI:       fmt.Sprintf("%v/server/%v/auth_config", apiData.APIAddr, apiData.ServerID),
-		masterPasswordURI: fmt.Sprintf("%v/master_password/get", apiData.APIAddr),
+		masterPasswordURI: fmt.Sprintf("%v/master_password", apiData.APIAddr),
                 httpClient:        &http.Client{Timeout: time.Second * 10},
 	}
 
