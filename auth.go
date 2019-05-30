@@ -153,7 +153,6 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 
 	if credentials != "ipauth:ipauth" {
 		val, ok = authData.IPToCredentials[proxyIP]
-		fmt.Println(val)
 		if !ok {
 			return false
 		}
