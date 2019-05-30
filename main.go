@@ -33,10 +33,6 @@ func getAPIInfoFromFile(path string) (*APIData, error) {
 	return ret, nil
 }
 
-var OK = []byte("OK\n")
-var BH = []byte("BH\n")
-var ERR = []byte("ERR\n")
-
 func main() {
 	apiInfoFileCmd := flag.String("api_info_file", "", "Path to file with api address and api key, split by new line.")
 	flag.Parse()
@@ -51,6 +47,10 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	authBackend := NewAuthorization(authData)
+
+	OK := []byte("OK\n")
+	BH := []byte("BH\n")
+	ERR := []byte("ERR\n")
 
 	for scanner.Scan() {
 		inputString := scanner.Text()

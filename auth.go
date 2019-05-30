@@ -8,13 +8,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
+// AuthData contains proxy ip to passwords and authorized ips map,
+// master password and backconnect server ips list
 type AuthData struct {
-	IPToCredentials map[string]map[string]bool `json:"ips_to_credentials"`
-	IPToAllowedIPs  map[string]map[string]bool `json:"ips_to_authorized_ips"`
+	IPToCredentials    map[string]map[string]bool `json:"ips_to_credentials"`
+	IPToAllowedIPs     map[string]map[string]bool `json:"ips_to_authorized_ips"`
+	MasterPassword     string                     `json:"master_password"`
+	BackconnectServers []string                   `json:"backconnect_servers"`
 }
 
 // APIData contains data needed to access api
@@ -28,18 +32,13 @@ type APIData struct {
 type Authorization struct {
 	apiData *APIData
 
-	masterCredentialsMutex sync.RWMutex
-	masterCredentials      string
-
 	credentialsHash string
-	authDataMutex   sync.RWMutex
-	AuthData        *AuthData
+	AuthData        atomic.Value
 
-	authHashURI       string
-	authDataURI       string
-	masterPasswordURI string
+	authHashURI string
+	authDataURI string
 
-        httpClient        *http.Client
+	httpClient *http.Client
 }
 
 func (auth *Authorization) getCurrentAuthData() ([]byte, error) {
@@ -94,29 +93,6 @@ func (auth *Authorization) getCurrentAuthHash() string {
 	return string(bodyBytes)
 }
 
-func (auth *Authorization) updateMasterPassword() {
-	req, err := http.NewRequest("GET", auth.masterPasswordURI, nil)
-	if err != nil {
-		return
-	}
-	req.SetBasicAuth("api", auth.apiData.APIKey)
-
-	resp, err := auth.httpClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	auth.masterCredentialsMutex.Lock()
-	auth.masterCredentials = string(bodyBytes)
-	auth.masterCredentialsMutex.Unlock()
-}
-
 func (auth *Authorization) updateAuth() {
 	newHash := auth.getCurrentAuthHash()
 
@@ -125,10 +101,8 @@ func (auth *Authorization) updateAuth() {
 		if err == nil {
 			var newData AuthData
 			json.Unmarshal(authDataRaw, &newData)
-			auth.authDataMutex.Lock()
 			auth.credentialsHash = newHash
-			auth.AuthData = &newData
-			auth.authDataMutex.Unlock()
+			auth.AuthData.Store(&newData)
 		}
 	}
 }
@@ -136,7 +110,6 @@ func (auth *Authorization) updateAuth() {
 func (auth *Authorization) checkForNewAuth() {
 	for {
 		time.Sleep(60 * time.Second)
-		auth.updateMasterPassword()
 		auth.updateAuth()
 	}
 }
@@ -145,14 +118,12 @@ func (auth *Authorization) checkForNewAuth() {
 // api address and api key
 func NewAuthorization(apiData *APIData) *Authorization {
 	auth := &Authorization{
-		apiData:           apiData,
-		authHashURI:       fmt.Sprintf("%v/server/%v/auth_config_hash", apiData.APIAddr, apiData.ServerID),
-		authDataURI:       fmt.Sprintf("%v/server/%v/auth_config", apiData.APIAddr, apiData.ServerID),
-		masterPasswordURI: fmt.Sprintf("%v/master_password", apiData.APIAddr),
-                httpClient:        &http.Client{Timeout: time.Second * 10},
+		apiData:     apiData,
+		authHashURI: fmt.Sprintf("%v/server/%v/auth_config_hash", apiData.APIAddr, apiData.ServerID),
+		authDataURI: fmt.Sprintf("%v/server/%v/auth_config", apiData.APIAddr, apiData.ServerID),
+		httpClient:  &http.Client{Timeout: time.Second * 10},
 	}
 
-	auth.updateMasterPassword()
 	auth.updateAuth()
 	go auth.checkForNewAuth()
 
@@ -162,16 +133,18 @@ func NewAuthorization(apiData *APIData) *Authorization {
 // CanLogin checks cache and issues a request to api to determine if
 // a user with login and password can use proxy with given ip.
 func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP string) bool {
-	auth.masterCredentialsMutex.RLock()
-	if credentials == auth.masterCredentials {
-		auth.masterCredentialsMutex.RUnlock()
+	authData := auth.AuthData.Load().(*AuthData)
+	if credentials == authData.MasterPassword {
 		return true
 	}
-	auth.masterCredentialsMutex.RUnlock()
 
-	auth.authDataMutex.RLock()
-	defer auth.authDataMutex.RUnlock()
-	val, ok := auth.AuthData.IPToAllowedIPs[proxyIP]
+	for _, ip := range authData.BackconnectServers {
+		if remoteIP == ip {
+			return true
+		}
+	}
+
+	val, ok := authData.IPToAllowedIPs[proxyIP]
 	if ok {
 		if _, ok = val[remoteIP]; ok {
 			return true
@@ -179,7 +152,8 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 	}
 
 	if credentials != "ipauth:ipauth" {
-		val, ok = auth.AuthData.IPToCredentials[proxyIP]
+		val, ok = authData.IPToCredentials[proxyIP]
+		fmt.Println(val)
 		if !ok {
 			return false
 		}
