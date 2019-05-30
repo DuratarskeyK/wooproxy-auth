@@ -18,7 +18,7 @@ type AuthData struct {
 	IPToCredentials    map[string]map[string]bool `json:"ips_to_credentials"`
 	IPToAllowedIPs     map[string]map[string]bool `json:"ips_to_authorized_ips"`
 	MasterPassword     string                     `json:"master_password"`
-	BackconnectServers []string                   `json:"backconnect_servers"`
+	BackconnectServers map[string]bool            `json:"backconnect_servers"`
 }
 
 // APIData contains data needed to access api
@@ -138,10 +138,8 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 		return true
 	}
 
-	for _, ip := range authData.BackconnectServers {
-		if remoteIP == ip {
-			return true
-		}
+	if _, ok := authData.BackconnectServers[remoteIP]; ok {
+		return true
 	}
 
 	val, ok := authData.IPToAllowedIPs[proxyIP]
