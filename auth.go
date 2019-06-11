@@ -127,7 +127,7 @@ func NewAuthorization(apiData *APIData) *Authorization {
 		httpClient:  &http.Client{Timeout: time.Second * 10},
 	}
 
-	auth.failLog, _ = os.Create("auth_fail.log")
+	auth.failLog, _ = os.Create("/auth_fail.log")
 
 	auth.updateAuth()
 	go auth.checkForNewAuth()
