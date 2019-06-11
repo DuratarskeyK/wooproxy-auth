@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sync/atomic"
 	"time"
 )
@@ -39,6 +40,8 @@ type Authorization struct {
 	authDataURI string
 
 	httpClient *http.Client
+
+	failLog *os.File
 }
 
 func (auth *Authorization) getCurrentAuthData() ([]byte, error) {
@@ -124,6 +127,8 @@ func NewAuthorization(apiData *APIData) *Authorization {
 		httpClient:  &http.Client{Timeout: time.Second * 10},
 	}
 
+	auth.failLog, _ = os.Create("auth_fail.log")
+
 	auth.updateAuth()
 	go auth.checkForNewAuth()
 
@@ -152,6 +157,7 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 	if credentials != "ipauth:ipauth" {
 		val, ok = authData.IPToCredentials[proxyIP]
 		if !ok {
+			fmt.Fprintf(auth.failLog, "%s: Auth failed for remote IP %s, credentials %s\n", proxyIP, remoteIP, credentials)
 			return false
 		}
 
@@ -159,5 +165,6 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 
 		return ok
 	}
+	fmt.Fprintf(auth.failLog, "%s: Auth failed for remote IP %s, credentials %s\n", proxyIP, remoteIP, credentials)
 	return false
 }
