@@ -158,6 +158,7 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 		val, ok = authData.IPToCredentials[proxyIP]
 		if !ok {
 			fmt.Fprintf(auth.failLog, "%s: Auth failed for remote IP %s, credentials %s\n", proxyIP, remoteIP, credentials)
+			auth.failLog.Sync()
 			return false
 		}
 
@@ -166,5 +167,6 @@ func (auth *Authorization) CanLogin(proxyIP string, credentials string, remoteIP
 		return ok
 	}
 	fmt.Fprintf(auth.failLog, "%s: Auth failed for remote IP %s, credentials %s\n", proxyIP, remoteIP, credentials)
+	auth.failLog.Sync()
 	return false
 }
